@@ -1,5 +1,7 @@
 # DS Automobiles Trip Analyser
 
+**by [esquiiom](https://github.com/eskiiom)**
+
 <img width="1143" height="375" alt="image" src="https://github.com/user-attachments/assets/16e05a46-f3cd-4dba-bc33-53292d4cb61c" />
 
 Outil web **100 % frontend** pour visualiser, filtrer et analyser les exports CSV des trajets du système **myDS** (Citroën DS7 Crossback).
@@ -86,8 +88,10 @@ Ton véritable export (`myDS-trips-*.csv` ou tout autre CSV contenant tes trajet
 
 ## Licence
 
-MIT – fais ce que tu veux avec le code. Les données restent les tiennes.
+MIT – fais ce que tu veux avec le code.
 
 ---
+
+**Made by [esquiiom](https://github.com/eskiiom)** – Retrouve le projet ici : https://github.com/eskiiom/DS-Automobiles-Trip-Analyser
 
 **Bon road-trip !** 🚗
