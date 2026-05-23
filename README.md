@@ -1,4 +1,4 @@
-# DS Automobiles Trip Analyser
+# Stellantis / PSA - DS Automobiles Trip Analyser
 
 <img width="1143" height="375" alt="image" src="https://github.com/user-attachments/assets/16e05a46-f3cd-4dba-bc33-53292d4cb61c" />
 
