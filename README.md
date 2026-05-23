@@ -1,4 +1,4 @@
-# DS7 Trip Analyser
+# DS Automobiles Trip Analyser
 
 <img width="1143" height="375" alt="image" src="https://github.com/user-attachments/assets/16e05a46-f3cd-4dba-bc33-53292d4cb61c" />
 
@@ -9,6 +9,11 @@ Outil web **100 % frontend** pour visualiser, filtrer et analyser les exports CS
 - Données 100 % privées (aucun upload)
 
 ## Aperçu des fonctionnalités
+
+<img width="1401" height="775" alt="image" src="https://github.com/user-attachments/assets/dfe6f30e-755a-44a8-bfa3-113ff61643ee" />
+<img width="1400" height="535" alt="image" src="https://github.com/user-attachments/assets/8c7b90bc-6f0d-4289-919c-45984ea63b5c" />
+<img width="1398" height="643" alt="image" src="https://github.com/user-attachments/assets/015cae77-c9bd-4a86-853b-575cc8a847d8" />
+
 
 - **KPIs globaux** : nombre de trajets, km total, distance/conso/vitesse moyennes, coût total
 - **Filtres avancés** :
@@ -33,9 +38,11 @@ Outil web **100 % frontend** pour visualiser, filtrer et analyser les exports CS
 
 ### 1. Export depuis myDS
 
-1. Va sur l’application myDS des propriétaires DS Automobiles
+1. Va sur l’application myDS des propriétaires DS Automobiles (https://play.google.com/store/apps/details?id=com.psa.mym.myds&hl=fr&pli=1)
 2. Exporte l’historique des trajets au format CSV (séparateur `;` attendu)
-3. Le nom du fichier ressemble généralement à : `myDS-trips-05-22-2026.csv`
+3. Dans Mon compte -> Paramètres -> Données de conduite -> Exportez vos trajets
+4. Le nom du fichier ressemble généralement à : `myDS-trips-05-22-2026.csv`
+5. Plus d'info sur les services connectés DS Automobiles : https://www.dsautomobiles.fr/votreds/votreds-et-vous/myds-app-connected-services.html
 
 ### 2. Visualisation locale (recommandé)
 
