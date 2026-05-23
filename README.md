@@ -1,12 +1,12 @@
 # DS7 Trip Analyser
 
+<img width="1143" height="375" alt="image" src="https://github.com/user-attachments/assets/16e05a46-f3cd-4dba-bc33-53292d4cb61c" />
+
 Outil web **100 % frontend** pour visualiser, filtrer et analyser les exports CSV des trajets du système **myDS** (Citroën DS7 Crossback).
 
 - Format français supporté nativement (`;` comme séparateur, dates `DD/MM/YY`, virgules décimales)
 - Aucun backend, tout tourne dans le navigateur
 - Données 100 % privées (aucun upload)
-
-<img width="1143" height="375" alt="image" src="https://github.com/user-attachments/assets/16e05a46-f3cd-4dba-bc33-53292d4cb61c" />
 
 ## Aperçu des fonctionnalités
 
