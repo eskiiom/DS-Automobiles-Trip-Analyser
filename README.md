@@ -6,6 +6,8 @@ Outil web **100 % frontend** pour visualiser, filtrer et analyser les exports CS
 - Aucun backend, tout tourne dans le navigateur
 - Données 100 % privées (aucun upload)
 
+<img width="1143" height="375" alt="image" src="https://github.com/user-attachments/assets/16e05a46-f3cd-4dba-bc33-53292d4cb61c" />
+
 ## Aperçu des fonctionnalités
 
 - **KPIs globaux** : nombre de trajets, km total, distance/conso/vitesse moyennes, coût total
