@@ -1,0 +1,41 @@
+# Fichiers et dossiers à ignorer - DS7 Trip Analyser
+
+# === Données personnelles réelles (CSV myDS) ===
+# Tous les exports réels du système myDS automobiles
+myDS-trips*.csv
+trips-*.csv
+*.myDS.csv
+historique*.csv
+
+# Versions avec date ou timestamp spécifiques
+20*/*.csv
+my-trips*.csv
+export*.csv
+
+# === Fichiers locaux / temporaires ===
+*.bak
+*.tmp
+*~
+.DS_Store
+Thumbs.db
+
+# === IDE / éditeurs ===
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+
+# === Dossiers de build / OS ===
+node_modules/
+dist/
+build/
+
+# === Sauvegardes manuelles ===
+backup/
+old/
+archive/
+
+# === Sauvegardes de fichiers CSV locaux ===
+*backup*.csv
+*export_*.csv
+*original*.csv

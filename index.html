@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS7 Trip Analyser • Interactive</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+    
+    :root {
+      --font-sans: 'Inter', system_ui, sans-serif;
+    }
+    
+    body {
+      font-family: 'Inter', system_ui, sans-serif;
+    }
+    
+    .font-display {
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-weight: 600;
+    }
+
+    .csv-dropzone {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .csv-dropzone.dragover {
+      background-color: #1e2937;
+      border-color: #64748b;
+    }
+
+    .stat-card {
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .trip-row {
+      transition: background-color 0.1s ease;
+    }
+    
+    .trip-row:hover {
+      background-color: #0f172a;
+    }
+
+    .data-table th {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    
+    .data-table th:hover {
+      background-color: #1e2937;
+    }
+
+    .modal {
+      animation: modalPop 0.2s ease-out forwards;
+    }
+
+    .chart-container {
+      position: relative;
+    }
+
+    .kpi-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .address {
+      font-size: 0.8125rem;
+      line-height: 1.25rem;
+    }
+
+    .metric {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200">
+  <!-- Header -->
+  <div class="border-b border-slate-800 bg-slate-900">
+    <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-x-3">
+        <div class="w-9 h-9 bg-emerald-600 rounded-2xl flex items-center justify-center">
+          <i class="fa-solid fa-car text-white text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="font-display font-semibold text-3xl tracking-tighter">DS7 Trip Analyser</h1>
+          <p class="text-xs text-slate-500 -mt-1">Exploration interactive • Déc. 2023 → Mai 2026</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-x-4 text-sm">
+        <div id="file-status" class="flex items-center gap-x-2 text-slate-400">
+          <i class="fa-solid fa-file-csv"></i>
+          <span id="file-name">Aucun fichier chargé</span>
+        </div>
+        
+        <button onclick="resetAll()" 
+                class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors rounded-2xl flex items-center gap-x-2">
+          <i class="fa-solid fa-undo text-xs"></i>
+          <span>Réinitialiser</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-screen-2xl mx-auto p-6">
+    
+    <!-- Upload Zone -->
+    <div id="upload-section" class="mb-6">
+      <div onclick="document.getElementById('csv-file').click()" 
+           class="csv-dropzone border-2 border-dashed border-slate-700 hover:border-slate-500 bg-slate-900 rounded-3xl p-9 flex flex-col items-center justify-center cursor-pointer"
+           ondrop="dropHandler(event)" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)">
+        <input type="file" id="csv-file" accept=".csv,text/csv" class="hidden" onchange="handleFileSelect(event)">
+        
+        <div class="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center mb-4">
+          <i class="fa-solid fa-upload text-emerald-400 text-3xl"></i>
+        </div>
+        <div class="text-center">
+          <div class="font-semibold">Déposez votre fichier CSV ici</div>
+          <div class="text-sm text-slate-400 mt-0.5">ou cliquez pour sélectionner myDS-trips-05-22-2026.csv</div>
+          <div class="mt-2 inline-flex items-center gap-x-1.5 text-xs px-3 py-1 rounded-2xl bg-slate-800 text-slate-400">
+            <i class="fa-solid fa-info-circle"></i>
+            <span>Séparateur ; • Format français (virgules décimales)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden space-y-6">
+      
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div class="stat-card bg-slate-900 border border-slate-800 px-6 py-5 rounded-3xl">
+          <div class="text-sm text-slate-400">Total trajets</div>
+          <div id="kpi-count" class="kpi-value text-5xl font-semibold tabular-nums mt-2 text-white">-</div>
+        </div>
+        
+        <div class="stat-card bg-slate-900 border border-slate-800 px-6 py-5 rounded-3xl">
+          <div class="text-sm text-slate-400">Kilométrage total</div>
+          <div class="flex items-baseline gap-x-2">
+            <div id="kpi-km" class="kpi-value text-5xl font-semibold tabular-nums mt-2 text-white">-</div>
+            <div class="font-medium text-slate-400">km</div>
+          </div>
+        </div>
+        
+        <div class="stat-card bg-slate-900 border border-slate-800 px-6 py-5 rounded-3xl">
+          <div class="text-sm text-slate-400">Distance moyenne</div>
+          <div class="flex items-baseline gap-x-2">
+            <div id="kpi-avg-dist" class="kpi-value text-5xl font-semibold tabular-nums mt-2 text-white">-</div>
+            <div class="font-medium text-slate-400">km/trajet</div>
+          </div>
+        </div>
+        
+         <div class="stat-card bg-slate-900 border border-slate-800 px-6 py-5 rounded-3xl">
+          <div class="text-sm text-slate-400">Conso. moyenne</div>
+          <div class="flex items-baseline gap-x-1">
+            <div id="kpi-avg-cons" class="kpi-value text-5xl font-semibold tabular-nums mt-2 text-white">-</div>
+            <div class="font-medium text-slate-400">L/100 km</div>
+          </div>
+        </div>
+        
+        <div class="stat-card bg-slate-900 border border-slate-800 px-6 py-5 rounded-3xl">
+          <div class="text-sm text-slate-400">Vitesse moyenne</div>
+          <div class="flex items-baseline gap-x-1">
+            <div id="kpi-avg-speed" class="kpi-value text-5xl font-semibold tabular-nums mt-2 text-white">-</div>
+            <div class="font-medium text-slate-400">km/h</div>
+          </div>
+        </div>
+        
+        <div class="stat-card bg-slate-900 border border-slate-800 px-6 py-5 rounded-3xl">
+          <div class="text-sm text-slate-400">Coût total</div>
+          <div class="flex items-baseline gap-x-1">
+            <div id="kpi-cost" class="kpi-value text-5xl font-semibold tabular-nums mt-2 text-white">-</div>
+            <div class="font-medium text-emerald-400">€</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Filters -->
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-4">
+          <div>
+            <div class="uppercase text-xs text-slate-500 tracking-wider mb-1.5 font-semibold">Filtrer la période</div>
+            <div class="flex items-center gap-x-2">
+              <input type="date" id="date-from" class="bg-slate-950 border border-slate-700 text-white px-3 py-2 rounded-2xl text-sm w-40 focus:outline-none focus:border-slate-500"
+                     onchange="applyFilters()">
+              <div class="text-slate-400">→</div>
+              <input type="date" id="date-to" class="bg-slate-950 border border-slate-700 text-white px-3 py-2 rounded-2xl text-sm w-40 focus:outline-none focus:border-slate-500"
+                     onchange="applyFilters()">
+              
+              <div class="flex rounded-xl bg-slate-800 border border-slate-700 ml-3">
+                <button onclick="setQuickDate(30)" class="text-xs px-3 py-1.5 hover:bg-slate-700 active:bg-slate-600 rounded-l-xl transition-colors">30j</button>
+                <button onclick="setQuickDate(90)" class="text-xs px-3 py-1.5 hover:bg-slate-700 active:bg-slate-600 transition-colors">3 mois</button>
+                <button onclick="setQuickDate(365)" class="text-xs px-3 py-1.5 hover:bg-slate-700 active:bg-slate-600 transition-colors">1 an</button>
+                <button onclick="setQuickDate(null)" class="text-xs px-3 py-1.5 hover:bg-slate-700 active:bg-slate-600 rounded-r-xl transition-colors">Tout</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="w-72">
+            <div class="uppercase text-xs text-slate-500 tracking-wider mb-1.5 font-semibold">Recherche adresse</div>
+            <div class="relative">
+              <input type="text" id="search-input" placeholder="Conflans, Paris, Herblay..."
+                     oninput="applyFilters()"
+                     class="w-full bg-slate-950 border border-slate-700 focus:border-emerald-600 focus:outline-none pl-9 transition-colors rounded-2xl px-3 py-2 text-sm">
+              <i class="fa-solid fa-search absolute text-slate-500 left-3 top-2.5"></i>
+            </div>
+          </div>
+          
+          <div>
+            <div class="uppercase text-xs text-slate-500 tracking-wider mb-1.5 font-semibold">Catégories</div>
+            <div class="flex gap-x-1 text-sm">
+              <label class="flex items-center cursor-pointer bg-slate-800 border border-slate-700 hover:border-slate-500 rounded-2xl px-4 py-1.5 text-sm gap-x-2">
+                <input type="checkbox" id="cat-pro" checked onchange="applyFilters()" class="accent-emerald-500">
+                <span>Professionnel</span>
+              </label>
+              <label class="flex items-center cursor-pointer bg-slate-800 border border-slate-700 hover:border-slate-500 rounded-2xl px-4 py-1.5 text-sm gap-x-2">
+                <input type="checkbox" id="cat-loisirs" checked onchange="applyFilters()" class="accent-emerald-500">
+                <span>Loisirs</span>
+              </label>
+              <label class="flex items-center cursor-pointer bg-slate-800 border border-slate-700 hover:border-slate-500 rounded-2xl px-4 py-1.5 text-sm gap-x-2">
+                <input type="checkbox" id="cat-none" checked onchange="applyFilters()" class="accent-emerald-500">
+                <span>Sans catégorie</span>
+              </label>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- Distance range (min + max) -->
+        <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+          
+          <!-- MIN DISTANCE -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <div class="uppercase text-xs text-slate-500 tracking-wider font-semibold">Distance minimum</div>
+              <div class="flex items-center gap-x-2">
+                <input type="number" id="min-dist-input" value="0" min="0" max="300" class="w-16 text-right tabular-nums bg-slate-950 border border-slate-700 text-emerald-400 rounded-2xl px-2 py-px text-xs font-mono focus:outline-none"
+                       oninput="syncMinDistFromInput(); applyFilters()">
+                <span class="text-xs text-slate-500">km</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-x-3">
+              <input type="range" id="min-dist" min="0" max="300" step="1" value="0" 
+                     oninput="updateDistLabels(); applyFilters()" 
+                     class="w-full accent-emerald-400">
+            </div>
+          </div>
+
+          <!-- MAX DISTANCE -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <div class="uppercase text-xs text-slate-500 tracking-wider font-semibold">Distance maximum</div>
+              <div class="flex items-center gap-x-2">
+                <input type="number" id="max-dist-input" value="300" min="0" max="300" class="w-16 text-right tabular-nums bg-slate-950 border border-slate-700 text-emerald-400 rounded-2xl px-2 py-px text-xs font-mono focus:outline-none"
+                       oninput="syncMaxDistFromInput(); applyFilters()">
+                <span class="text-xs text-slate-500">km</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-x-3">
+              <input type="range" id="max-dist" min="0" max="300" step="1" value="300" 
+                     oninput="updateDistLabels(); applyFilters()" 
+                     class="w-full accent-sky-400">
+              <button onclick="resetDistFilter()" class="text-xs px-3 py-1 bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-700 text-slate-300 rounded-2xl text-center">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- Monthly trend -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-5">
+          <div class="flex justify-between px-1 mb-3">
+            <div class="font-semibold">Tendance mensuelle</div>
+            <div class="text-xs text-slate-400">Trajets & Kilomètres</div>
+          </div>
+          <div class="h-[220px] px-1">
+            <canvas id="chart-monthly"></canvas>
+          </div>
+        </div>
+        
+        <!-- Category breakdown -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-5">
+          <div class="flex justify-between px-1 mb-3">
+            <div class="font-semibold">Répartition par catégorie</div>
+          </div>
+          <div class="h-[220px] flex items-center">
+            <canvas id="chart-category"></canvas>
+          </div>
+        </div>
+        
+        <!-- NEW: Consommation moyenne + Vitesse moyenne trends (2 colonnes) -->
+        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-5">
+          <div class="flex justify-between px-1 mb-3">
+            <div class="font-semibold">Consommation moyenne (L/100km)</div>
+          </div>
+          <div class="h-[170px]">
+            <canvas id="chart-conso"></canvas>
+          </div>
+        </div>
+        
+        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-5">
+          <div class="flex justify-between px-1 mb-3">
+            <div class="font-semibold">Vitesse moyenne (km/h)</div>
+          </div>
+          <div class="h-[170px]">
+            <canvas id="chart-speed-trend"></canvas>
+          </div>
+        </div>
+        
+        <!-- Cumulative kilometers -->
+        <div class="lg:col-span-12 bg-slate-900 border border-slate-800 rounded-3xl p-5">
+          <div class="flex justify-between px-1 mb-3 items-baseline">
+            <div class="font-semibold">Kilométrage cumulé</div>
+            <div class="text-sm text-slate-400">Progression du compteur</div>
+          </div>
+          <div class="h-[170px]">
+            <canvas id="chart-cumulative"></canvas>
+          </div>
+        </div>
+        
+      </div>
+      
+      <!-- Table section -->
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden">
+        <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-x-3">
+            <div class="font-semibold">Trajets (<span id="table-count">0</span>)</div>
+            
+            <div class="text-xs px-2.5 py-px bg-slate-800 border border-slate-700 rounded-3xl">
+              <select id="page-size" onchange="renderTable()" class="bg-transparent focus:outline-none text-slate-300">
+                <option value="15">15 / page</option>
+                <option value="25" selected>25 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+            </div>
+            
+            <button onclick="exportFilteredCSV()" 
+                    class="flex items-center text-xs gap-x-2 py-1 px-3 border border-slate-700 hover:bg-emerald-600 hover:text-white transition-colors rounded-xl bg-slate-950">
+              <i class="fa-solid fa-download"></i>
+              <span>Exporter CSV</span>
+            </button>
+          </div>
+          
+          <div>
+            <button onclick="clearFilters()" class="px-3 py-1.5 text-xs border border-slate-700 hover:bg-slate-700 rounded-2xl transition-colors">
+              Effacer les filtres
+            </button>
+          </div>
+        </div>
+        
+        <!-- Table -->
+        <div class="overflow-x-auto max-h-[520px] overflow-y-auto">
+          <table class="w-full data-table text-sm">
+            <thead class="bg-slate-950 sticky top-0 z-30">
+               <tr class="border-b border-slate-800 text-slate-400 font-normal">
+                <th onclick="sortTable('date')" class="px-6 py-3 text-left">Date <i class="fa-solid fa-sort ml-1 text-xs opacity-60"></i></th>
+                <th onclick="sortTable('time')" class="px-6 py-3 text-left">Départ / Durée</th>
+                <th onclick="sortTable('distance')" class="px-6 py-3 text-right">Distance</th>
+                <th onclick="sortTable('speed')" class="px-6 py-3 text-center">Vitesse moy.</th>
+                <th onclick="sortTable('from')" class="px-6 py-3 text-left">Départ</th>
+                <th onclick="sortTable('to')" class="px-6 py-3 text-left">Arrivée</th>
+                <th onclick="sortTable('cat')" class="px-6 py-3 text-center">Catégorie</th>
+                <th onclick="sortTable('cost')" class="px-6 py-3 text-right">Coût</th>
+                <th class="w-11"></th>
+              </tr>
+            </thead>
+            <tbody id="table-body" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="px-5 py-3 text-sm flex border-t border-slate-800 justify-between items-center bg-slate-950/70">
+          <div>
+            <button onclick="prevPage()" class="px-3 text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-angle-left"></i></button>
+            <span id="page-info" class="px-3 tabular-nums text-slate-400">1 / 1</span>
+            <button onclick="nextPage()" class="px-3 text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-angle-right"></i></button>
+          </div>
+          <div class="text-slate-500 text-xs">Page <span id="current-page">1</span> • <span id="page-total">1</span></div>
+        </div>
+      </div>
+      
+    </div>
+    
+  </div>
+
+  <!-- Trip Detail Modal -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50" onclick="if (event.target.id === 'modal') hideModal()">
+    <div onclick="event.stopImmediatePropagation()" class="modal bg-slate-900 border border-slate-700 w-[95%] max-w-3xl rounded-3xl overflow-hidden shadow-2xl">
+      <div class="bg-slate-950 border-b border-slate-700 flex justify-between items-center px-6 py-4">
+        <div class="font-semibold flex items-center gap-x-2 text-lg">
+          <i class="fa-solid fa-info-circle text-emerald-400"></i>
+          <span>Détails du trajet</span>
+        </div>
+        <button onclick="hideModal()" class="text-slate-500 hover:text-white px-3 py-1 text-xl">&times;</button>
+      </div>
+      
+      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8">
+        
+        <div>
+          <div class="mb-4">
+            <div class="uppercase font-semibold text-xs text-emerald-400 tracking-widest mb-1">Date et horaire</div>
+            <div id="modal-date" class="text-2xl tabular-nums"></div>
+            <div id="modal-time" class="text-xl tabular-nums text-slate-300 mt-1"></div>
+          </div>
+          
+           <div class="grid grid-cols-3 gap-x-4">
+            <div>
+              <div class="uppercase font-semibold text-xs text-emerald-400 tracking-widest mb-1">Distance</div>
+              <div><span id="modal-dist" class="text-4xl tabular-nums font-semibold"></span> <span class="text-sm">km</span></div>
+            </div>
+            <div>
+              <div class="uppercase font-semibold text-xs text-emerald-400 tracking-widest mb-1">Durée</div>
+              <div id="modal-duration" class="text-4xl tabular-nums font-semibold"></div>
+            </div>
+            <div>
+              <div class="uppercase font-semibold text-xs text-emerald-400 tracking-widest mb-1">Vitesse moy.</div>
+              <div><span id="modal-speed" class="text-4xl tabular-nums font-semibold"></span> <span class="text-sm">km/h</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <div class="mb-4">
+            <div class="uppercase font-semibold text-xs text-emerald-400 tracking-widest mb-px">Catégorie</div>
+            <div id="modal-cat" class="inline-flex font-medium items-center text-xs px-3 py-px uppercase tracking-widest rounded-2xl"></div>
+          </div>
+          
+          <div class="bg-slate-950 border border-slate-800 rounded-3xl p-4 text-sm">
+            <div class="flex justify-between mb-px">
+              <span class="text-emerald-300/75 text-xs">Compteur</span>
+              <span id="modal-compteur" class="tabular-nums font-medium text-emerald-300"></span>
+            </div>
+            <div class="flex justify-between">
+              <div class="text-emerald-300/75 text-xs">Conso. moyenne</div>
+              <div id="modal-conso" class="tabular-nums"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="px-6 pb-6 pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 text-xs gap-4">
+          <div>
+            <div class="text-xs mb-1.5 font-medium text-slate-400">Adresse de départ</div>
+            <div id="modal-from" class="bg-slate-950 px-4 py-3 rounded-2xl border border-slate-800 leading-tight"></div>
+          </div>
+          <div>
+            <div class="text-xs mb-1.5 font-medium text-slate-400">Adresse d'arrivée</div>
+            <div id="modal-to" class="bg-slate-950 px-4 py-3 rounded-2xl border border-slate-800 leading-tight"></div>
+          </div>
+        </div>
+        
+        <div id="modal-cost-box" class="hidden mt-4 px-4 py-2 bg-emerald-900/30 text-emerald-300 text-xs rounded-2xl border border-emerald-900 flex items-center justify-between">
+          <div>Coût du trajet</div>
+          <div><span id="modal-cost" class="font-semibold tabular-nums text-lg"></span> €</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let allTrips = []
+    let filteredTrips = []
+    let currentSort = { field: 'date', dir: 'desc' }
+    let currentPage = 1
+    let pageSize = 25
+
+    // Chart instances
+    let chartMonthly = null
+    let chartCategory = null
+    let chartCumulative = null
+    let chartConso = null
+    let chartSpeedTrend = null
+    
+    // Parse French CSV with semicolons (robust quoted field handling)
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/)
+      const headers = parseCSVLine(lines[0])
+      
+      const rows = []
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue
+        const fields = parseCSVLine(lines[i])
+        const obj = {}
+        headers.forEach((h, idx) => {
+          obj[h] = fields[idx] !== undefined ? fields[idx] : ''
+        })
+        rows.push(obj)
+      }
+      return rows
+    }
+
+    function parseCSVLine(line) {
+      const result = []
+      let current = ''
+      let inQuotes = false
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        const nextChar = line[i + 1]
+        
+        if (char === '"' && inQuotes && nextChar === '"') {
+          current += '"'
+          i++
+        } else if (char === '"') {
+          inQuotes = !inQuotes
+        } else if (char === ';' && !inQuotes) {
+          result.push(current)
+          current = ''
+        } else {
+          current += char
+        }
+      }
+      result.push(current)
+      return result
+    }
+
+    function parseDate(str) {
+      if (!str) return null
+      // "19/12/23" OR "19/12/2023"
+      const parts = str.replace(/"/g, '').split('/')
+      if (parts.length !== 3) return null
+      const d = parseInt(parts[0])
+      const m = parseInt(parts[1])
+      let y = parseInt(parts[2])
+      // mds decision: treat 2-digit as 20xx
+      if (y < 100) y += 2000
+      return new Date(y, m - 1, d)
+    }
+
+    function parseDuration(dur) {
+      if (!dur || dur === '-' || dur === '""') return { text: '-', min: 0 }
+      const clean = dur.replace(/"/g, '')
+      if (!clean.includes(':')) return { text: clean || '-', min: 0 }
+      
+      const t = clean.split(':')
+      const h = parseInt(t[0]) || 0
+      const m = parseInt(t[1]) || 0
+      return { text: clean, min: h * 60 + m }
+    }
+
+    function parseNumber(val) {
+      if (!val || val === '-' || val === '""') return null
+      return parseFloat(val.replace(/"/g, '').replace(',', '.'))
+    }
+
+    function processTrips(rawRows) {
+      const trips = rawRows.map(r => {
+        const date = parseDate(r['date'])
+        
+        const distanceStr = (r['distance'] || '').replace(/"/g, '')
+        const distance = parseInt(distanceStr) || 0
+        
+        const compteur = parseInt((r['Kilométrage au compteur (km)'] || '').replace(/"/g, '')) || 0
+        
+        const conso = parseNumber(r['consommation moy. (l/100km)'])
+        const prixCarbu = parseNumber(r['prix du carburant (EUR/l)'])
+        const cout = parseNumber(r['coût (EUR)'])
+        
+        const catRaw = (r['catégorie'] || '').replace(/"/g, '').trim()
+        let cat = ''
+        if (/prof/i.test(catRaw)) cat = 'Professionnel'
+        else if (/loisir/i.test(catRaw)) cat = 'Loisirs'
+        else if (catRaw && catRaw.length > 0) cat = catRaw
+        
+        const dureeObj = parseDuration(r['durée'])
+        
+        return {
+          raw: r,
+          date: date,
+          dateStr: r['date'] ? r['date'].replace(/"/g, '') : '',
+          heure_depart: r['heure de départ'] ? r['heure de départ'].replace(/"/g, '') : '',
+          heure_arrivee: r['heure d\'arrivée'] ? r['heure d\'arrivée'].replace(/"/g, '') : '',
+          duree_str: r['durée'] || '',
+          duree: dureeObj,
+          adresse_depart: r['adresse de départ'] ? r['adresse de départ'].replace(/"/g, '') : '',
+          adresse_arrivee: r['adresse d\'arrivée'] ? r['adresse d\'arrivée'].replace(/"/g, '') : '',
+          distance: distance,
+          compteur_km: compteur,
+          conso_l100: conso,
+          prix_carburant: prixCarbu,
+          cout_eur: cout || 0,
+          categorie: cat,
+          vitesse_kmh: (dureeObj.min > 0 && distance > 0) ? parseFloat((distance / (dureeObj.min / 60)).toFixed(1)) : null
+        }
+      })
+      
+      // Sort by date asc initially
+      trips.sort((a, b) => a.date - b.date)
+      return trips
+    }
+
+    function formatShortAddress(addr, max = 38) {
+      if (!addr) return '-'
+      let a = addr.replace(/\s{2,}/g, ' ')
+      if (a.length > max) a = a.substring(0, max - 1) + '…'
+      return a
+    }
+
+    function formatDate(d) {
+      if (!d) return ''
+      return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    }
+
+    function updateKPIs(filtered) {
+      const count = filtered.length
+      const totalKm = filtered.reduce((s, t) => s + t.distance, 0)
+      const totalCost = filtered.reduce((s, t) => s + (t.cout_eur || 0), 0)
+      
+      let avgDist = count ? (totalKm / count).toFixed(1) : 0
+      
+      // Use most recent conso values first for average
+      const consoValues = filtered.filter(t => t.conso_l100 && t.conso_l100 > 0).map(t => t.conso_l100)
+      const avgConso = consoValues.length ? (consoValues.reduce((a, v) => a + v, 0) / consoValues.length).toFixed(2) : '—'
+      
+      // Average speed from rows that have duration > 0
+      const speedVals = filtered.filter(t => t.vitesse_kmh && t.vitesse_kmh > 0).map(t => t.vitesse_kmh)
+      const avgSpeed = speedVals.length ? (speedVals.reduce((a, v) => a + v, 0) / speedVals.length).toFixed(1) : '—'
+      
+      document.getElementById('kpi-count').textContent = count.toLocaleString('fr-FR')
+      document.getElementById('kpi-km').textContent = totalKm.toLocaleString('fr-FR')
+      document.getElementById('kpi-avg-dist').textContent = avgDist
+      document.getElementById('kpi-avg-cons').textContent = avgConso
+      document.getElementById('kpi-avg-speed').textContent = avgSpeed
+      document.getElementById('kpi-cost').textContent = totalCost.toFixed(0)
+    }
+
+    function updateDistLabels() {
+      const minVal = parseInt(document.getElementById('min-dist').value) || 0
+      const maxVal = parseInt(document.getElementById('max-dist').value) || 300
+      
+      // sync number inputs
+      document.getElementById('min-dist-input').value = minVal
+      document.getElementById('max-dist-input').value = maxVal
+    }
+
+    function syncMinDistFromInput() {
+      const inputVal = parseInt(document.getElementById('min-dist-input').value) || 0
+      const slider = document.getElementById('min-dist')
+      if (inputVal > parseInt(slider.max)) inputVal = parseInt(slider.max)
+      slider.value = inputVal
+    }
+
+    function syncMaxDistFromInput() {
+      const inputVal = parseInt(document.getElementById('max-dist-input').value) || 300
+      const slider = document.getElementById('max-dist')
+      if (inputVal > parseInt(slider.max)) inputVal = parseInt(slider.max)
+      slider.value = inputVal
+    }
+
+    // Filtering + Sorting
+    function applyFilters(rebuild = true) {
+      const fromVal = document.getElementById('date-from').value
+      const toVal = document.getElementById('date-to').value
+      const search = document.getElementById('search-input').value.toLowerCase().trim()
+      
+      const pro = document.getElementById('cat-pro').checked
+      const loisirs = document.getElementById('cat-loisirs').checked
+      const none = document.getElementById('cat-none').checked
+      
+      const minDist = parseInt(document.getElementById('min-dist').value) || 0
+      const maxDist = parseInt(document.getElementById('max-dist').value) || 9999
+      
+      filteredTrips = allTrips.filter(t => {
+        // date range
+        if (fromVal) {
+          const fromD = new Date(fromVal)
+          if (t.date < fromD) return false
+        }
+        if (toVal) {
+          const toD = new Date(toVal)
+          if (t.date > toD) return false
+        }
+        
+        // category
+        if (!pro && t.categorie === 'Professionnel') return false
+        if (!loisirs && t.categorie === 'Loisirs') return false
+        if (!none && t.categorie === '') return false
+        
+        // distance range filter
+        if (t.distance < minDist || t.distance > maxDist) return false
+        
+        // text search
+        if (search) {
+          if (!t.adresse_depart.toLowerCase().includes(search) && !t.adresse_arrivee.toLowerCase().includes(search)) {
+            return false
+          }
+        }
+        return true
+      })
+      
+      // sort
+      filteredTrips.sort((a, b) => {
+        let v1 = a[currentSort.field]
+        let v2 = b[currentSort.field]
+        
+        if (currentSort.field === 'date') {
+          return currentSort.dir === 'asc' ? v1 - v2 : v2 - v1
+        }
+        if (currentSort.field === 'distance' || currentSort.field === 'cost' || currentSort.field === 'speed') {
+          const key = currentSort.field === 'speed' ? 'vitesse_kmh' : currentSort.field
+          v1 = a[key] || 0
+          v2 = b[key] || 0
+          return currentSort.dir === 'asc' ? v1 - v2 : v2 - v1
+        }
+        // strings
+        v1 = (v1 || '').toString().toLowerCase()
+        v2 = (v2 || '').toString().toLowerCase()
+        if (v1 < v2) return currentSort.dir === 'asc' ? -1 : 1
+        if (v1 > v2) return currentSort.dir === 'asc' ? 1 : -1
+        return 0
+      })
+      
+      currentPage = 1
+      updateKPIs(filteredTrips)
+      updateCharts(filteredTrips)
+      renderTable()
+    }
+
+    function clearFilters() {
+      document.getElementById('date-from').value = ''
+      document.getElementById('date-to').value = ''
+      document.getElementById('search-input').value = ''
+      document.getElementById('min-dist').value = 0
+      document.getElementById('min-dist-input').value = 0
+      document.getElementById('max-dist').value = 300
+      document.getElementById('max-dist-input').value = 300
+      document.getElementById('cat-pro').checked = true
+      document.getElementById('cat-loisirs').checked = true
+      document.getElementById('cat-none').checked = true
+      applyFilters()
+    }
+
+    function resetDistFilter() {
+      document.getElementById('min-dist').value = 0
+      document.getElementById('min-dist-input').value = 0
+      document.getElementById('max-dist').value = 300
+      document.getElementById('max-dist-input').value = 300
+      applyFilters()
+    }
+
+    function setQuickDate(days) {
+      if (!days) {
+        document.getElementById('date-from').value = ''
+        document.getElementById('date-to').value = ''
+      } else {
+        const now = new Date()
+        const from = new Date()
+        from.setDate(now.getDate() - days)
+        
+        document.getElementById('date-from').value = from.toISOString().split('T')[0]
+        document.getElementById('date-to').value = now.toISOString().split('T')[0]
+      }
+      applyFilters()
+    }
+
+    // Charts
+    function updateCharts(data) {
+      updateMonthlyChart(data)
+      updateCategoryChart(data)
+      updateCumulativeChart(data)
+      updateConsoChart(data)
+      updateSpeedTrendChart(data)
+    }
+
+    function updateMonthlyChart(data) {
+      const monthly = {}
+      
+      data.forEach(t => {
+        if (!t.date) return
+        const key = t.date.getFullYear() + '-' + String(t.date.getMonth() + 1).padStart(2, '0')
+        if (!monthly[key]) monthly[key] = { count: 0, km: 0 }
+        monthly[key].count++
+        monthly[key].km += t.distance
+      })
+      
+      const sortedKeys = Object.keys(monthly).sort()
+      const labels = sortedKeys.map(k => {
+        const [y, m] = k.split('-')
+        return new Date(y, m - 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      })
+      
+      const counts = sortedKeys.map(k => monthly[k].count)
+      const kms = sortedKeys.map(k => monthly[k].km)
+      
+      if (chartMonthly) chartMonthly.destroy()
+      
+      const ctx = document.getElementById('chart-monthly')
+      chartMonthly = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Trajets',
+              data: counts,
+              backgroundColor: '#166534',
+              borderColor: '#4ade80',
+              borderWidth: 1,
+              yAxisID: 'y'
+            },
+            {
+              type: 'line',
+              label: 'Km',
+              data: kms,
+              borderColor: '#34d3eb',
+              borderWidth: 3,
+              pointRadius: 1.5,
+              fill: false,
+              tension: 0.35,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#1e2937' }, ticks: { color: '#64748b' } },
+            y: { position: 'left', grid: { color: '#1e2937' }, ticks: { color: '#64748b' } },
+            y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#64748b' } }
+          },
+          plugins: {
+            legend: { display: true, position: 'top', labels: { color: '#94a3b8' } }
+          }
+        }
+      })
+    }
+
+    function updateCategoryChart(data) {
+      const catAgg = { 'Professionnel': 0, 'Loisirs': 0, 'Aucune': 0 }
+      
+      data.forEach(t => {
+        if (t.categorie === 'Professionnel') catAgg['Professionnel'] += t.distance
+        else if (t.categorie === 'Loisirs') catAgg['Loisirs'] += t.distance
+        else catAgg['Aucune'] += t.distance
+      })
+      
+      const labels = ['Professionnel', 'Loisirs', 'Sans catégorie']
+      const values = [catAgg['Professionnel'], catAgg['Loisirs'], catAgg['Aucune']]
+      const colors = ['#166534', '#0e7490', '#334155']
+      
+      if (chartCategory) chartCategory.destroy()
+      
+      chartCategory = new Chart(document.getElementById('chart-category'), {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderColor: '#0f172a',
+            borderWidth: 3
+          }]
+        },
+        options: {
+          cutout: '72%',
+          plugins: {
+            legend: { position: 'left', labels: { color: '#cbd5e1', boxHeight: 15, boxWidth: 15 } }
+          },
+          maintainAspectRatio: false
+        }
+      })
+    }
+
+    function updateCumulativeChart(data) {
+      const sorted = [...data].sort((a, b) => a.date - b.date)
+      
+      const points = []
+      let accum = 0
+      
+      sorted.forEach(t => {
+        accum += t.distance
+        points.push({ d: t.date, cum: accum })
+      })
+      
+      // Aggregate on same days (last value is enough)
+      const daily = {}
+      points.forEach(p => {
+        const k = p.d.getTime()
+        daily[k] = p.cum
+      })
+      
+      const keys = Object.keys(daily).sort((a, b) => a - b)
+      
+      const labels = keys.map(ts => {
+        const d = new Date(parseInt(ts))
+        return d.toLocaleDateString('fr-FR', { month: '2-digit', year: '2-digit' }).replace('/', '/')
+      })
+      
+      const values = keys.map(k => daily[k])
+      
+      if (chartCumulative) chartCumulative.destroy()
+      
+      const ctx = document.getElementById('chart-cumulative')
+      chartCumulative = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Kilométrage cumulé',
+            data: values,
+            borderColor: '#4ade80',
+            borderWidth: 2.5,
+            pointRadius: 0,
+            fill: true,
+            backgroundColor: 'rgba(74, 222, 128, 0.12)',
+            tension: 0.15
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#1e2937' }, ticks: { color: '#64748b' } },
+            y: { grid: { color: '#1e2937' }, ticks: { color: '#64748b' } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      })
+    }
+
+    // --- NEW CHARTS : Consommation + Vitesse moyenne par mois ---
+
+    function updateConsoChart(data) {
+      const agg = {}
+
+      data.forEach(t => {
+        if (!t.date || !t.conso_l100 || t.conso_l100 <= 0) return
+        const key = t.date.getFullYear() + '-' + String(t.date.getMonth() + 1).padStart(2, '0')
+        if (!agg[key]) agg[key] = { values: [], count: 0 }
+        agg[key].values.push(t.conso_l100)
+        agg[key].count++
+      })
+
+      const keys = Object.keys(agg).sort()
+      const labels = keys.map(k => {
+        const [y, m] = k.split('-')
+        return new Date(y, m - 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      })
+      
+      const avgs = keys.map(k => {
+        const arr = agg[k].values
+        return parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2))
+      })
+
+      if (chartConso) chartConso.destroy()
+
+      const ctx = document.getElementById('chart-conso')
+      chartConso = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'L/100 km',
+            data: avgs,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 1.5,
+            pointHoverRadius: 3
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#1e2937' }, ticks: { color: '#64748b' } },
+            y: { grid: { color: '#1e2937' }, ticks: { color: '#64748b', stepSize: 1 } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      })
+    }
+
+    function updateSpeedTrendChart(data) {
+      const agg = {}
+
+      data.forEach(t => {
+        if (!t.date || !t.vitesse_kmh || t.vitesse_kmh <= 0) return
+        const key = t.date.getFullYear() + '-' + String(t.date.getMonth() + 1).padStart(2, '0')
+        if (!agg[key]) agg[key] = { vals: [] }
+        agg[key].vals.push(t.vitesse_kmh)
+      })
+
+      const keys = Object.keys(agg).sort()
+      const labels = keys.map(k => {
+        const [y, m] = k.split('-')
+        return new Date(y, m - 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      })
+      const avgs = keys.map(k => parseFloat((agg[k].vals.reduce((a, b) => a + b, 0) / agg[k].vals.length).toFixed(1)))
+
+      if (chartSpeedTrend) chartSpeedTrend.destroy()
+
+      const ctx = document.getElementById('chart-speed-trend')
+      chartSpeedTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'km/h',
+            data: avgs,
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.15)',
+            borderWidth: 2.5,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 1.5
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#1e2937' }, ticks: { color: '#64748b' } },
+            y: { grid: { color: '#1e2937' }, ticks: { color: '#64748b' } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      })
+    }
+
+    // Table rendering + pagination
+    function renderTable() {
+      const tbody = document.getElementById('table-body')
+      const pageSizeEl = parseInt(document.getElementById('page-size').value) || 25
+      pageSize = pageSizeEl
+      
+      const totalPages = Math.max(1, Math.ceil(filteredTrips.length / pageSize))
+      currentPage = Math.min(currentPage, totalPages)
+      
+      const start = (currentPage - 1) * pageSize
+      const slice = filteredTrips.slice(start, start + pageSize)
+      
+      tbody.innerHTML = ''
+      
+      slice.forEach((t, idx) => {
+        const html = `
+          <tr class="trip-row text-slate-300 cursor-pointer" onclick="showTripModal(${allTrips.indexOf(t)})">
+            <td class="px-6 py-3 font-mono tabular-nums text-sm">${t.dateStr}</td>
+            <td class="px-6 py-3 text-xs leading-tight">
+              <div class="font-mono text-emerald-300">${t.heure_depart || ''}</div>
+              <div class="text-slate-500 font-medium">${t.duree.text} min</div>
+            </td>
+            <td class="px-6 py-3 text-right">
+              <span class="font-semibold tabular-nums text-2xl text-slate-100">${t.distance}</span><span class="text-xs pl-px text-emerald-400">km</span>
+            </td>
+            <td class="px-6 py-3 text-center">
+              ${t.vitesse_kmh ? 
+                `<span class="font-semibold tabular-nums text-xl text-emerald-200">${t.vitesse_kmh}</span><span class="text-xs text-emerald-500 pl-1">km/h</span>` 
+                : `<span class="text-slate-600 text-sm">—</span>`}
+            </td>
+            <td class="px-6 py-3 address text-slate-300 max-w-xs">${formatShortAddress(t.adresse_depart)}</td>
+            <td class="px-6 py-3 address text-slate-400 max-w-xs">${formatShortAddress(t.adresse_arrivee)}</td>
+            <td class="px-6 py-3 text-center">
+              ${t.categorie ? 
+                `<span class="inline text-[10px] font-bold px-3 py-px rounded-3xl ${t.categorie === 'Professionnel' ? 'bg-sky-950 text-sky-400' : 'bg-emerald-950 text-emerald-500'}">${t.categorie.toUpperCase()}</span>` 
+                : `<span class="inline px-3 text-xs text-slate-400">-</span>`}
+            </td>
+            <td class="px-6 py-3 text-right font-mono tabular-nums ${t.cout_eur > 0 ? 'text-amber-300' : 'text-slate-600'}">
+              ${t.cout_eur > 0 ? t.cout_eur.toFixed(0) : ''}
+            </td>
+            <td class="text-center pr-4">
+              <i class="fa-solid fa-chevron-right fa-xs text-emerald-900/70"></i>
+            </td>
+          </tr>`
+        tbody.insertAdjacentHTML('beforeend', html)
+      })
+      
+      document.getElementById('table-count').textContent = filteredTrips.length
+      document.getElementById('page-info').textContent = `${currentPage} / ${totalPages}`
+      document.getElementById('current-page').textContent = currentPage
+      document.getElementById('page-total').textContent = totalPages
+    }
+
+    function sortTable(field) {
+      if (currentSort.field === field) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc'
+      } else {
+        currentSort.field = field
+        currentSort.dir = (field === 'date') ? 'desc' : 'asc'
+      }
+      applyFilters()
+    }
+
+    function nextPage() {
+      const total = Math.max(1, Math.ceil(filteredTrips.length / pageSize))
+      if (currentPage < total) {
+        currentPage++
+        renderTable()
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--
+        renderTable()
+      }
+    }
+
+    // Trip detail modal
+    function showTripModal(originalIndex) {
+      const t = allTrips[originalIndex]
+      if (!t) return
+      
+      document.getElementById('modal-date').textContent = formatDate(t.date)
+      document.getElementById('modal-time').innerHTML = `${t.heure_depart} <span class="text-emerald-400/40">→</span> ${t.heure_arrivee} <span class="text-xs font-mono text-slate-300 ml-1">(${t.duree.text})</span>`
+      document.getElementById('modal-dist').textContent = t.distance
+      document.getElementById('modal-duration').innerHTML = `${t.duree.text} <span class="text-xl text-slate-400">min</span>`
+      
+      const catEl = document.getElementById('modal-cat')
+      catEl.textContent = t.categorie ? t.categorie.toUpperCase() : 'INCONNU'
+      catEl.className = t.categorie === 'Professionnel' 
+        ? 'inline-flex font-semibold text-sm px-3.5 py-0.5 items-center rounded-3xl bg-sky-900/50 text-sky-300'
+        : 'inline-flex font-semibold text-sm px-3.5 py-0.5 items-center rounded-3xl bg-emerald-900/50 text-emerald-400'
+      
+      document.getElementById('modal-from').textContent = t.adresse_depart || '-'
+      document.getElementById('modal-to').textContent = t.adresse_arrivee || '-'
+      
+      document.getElementById('modal-compteur').textContent = t.compteur_km ? t.compteur_km.toLocaleString('fr-FR') + ' km' : ''
+      
+      const consoEl = document.getElementById('modal-conso')
+      if (t.conso_l100) {
+        consoEl.innerHTML = `${t.conso_l100.toFixed(1)} <span class="text-emerald-500">L/100 km</span>`
+      } else {
+        consoEl.innerHTML = '<span class="text-emerald-400/50">—</span>'
+      }
+      
+      // Average speed
+      const speedEl = document.getElementById('modal-speed')
+      speedEl.textContent = t.vitesse_kmh ? t.vitesse_kmh : '—'
+      speedEl.className = t.vitesse_kmh 
+        ? 'text-4xl tabular-nums font-semibold' 
+        : 'text-2xl text-emerald-400/50 font-light'
+      
+      const costBox = document.getElementById('modal-cost-box')
+      const costEl = document.getElementById('modal-cost')
+      
+      if (t.cout_eur > 0) {
+        costEl.textContent = t.cout_eur.toFixed(2)
+        costBox.classList.remove('hidden')
+        costBox.classList.add('flex')
+      } else {
+        costBox.classList.add('hidden')
+        costBox.classList.remove('flex')
+      }
+      
+      document.getElementById('modal').classList.remove('hidden')
+      document.getElementById('modal').classList.add('flex')
+    }
+
+    function hideModal() {
+      const m = document.getElementById('modal')
+      m.classList.remove('flex')
+      m.classList.add('hidden')
+    }
+
+    // File handling
+    function handleFileSelect(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      loadCSV(file)
+    }
+
+    function dropHandler(ev) {
+      ev.preventDefault()
+      const zone = document.querySelector('.csv-dropzone')
+      zone.classList.remove('dragover')
+      
+      if (ev.dataTransfer.files.length > 0) {
+        loadCSV(ev.dataTransfer.files[0])
+      }
+    }
+
+    function dragOverHandler(ev) {
+      ev.preventDefault()
+      document.querySelector('.csv-dropzone').classList.add('dragover')
+    }
+
+    function dragLeaveHandler(ev) {
+      ev.preventDefault()
+      document.querySelector('.csv-dropzone').classList.remove('dragover')
+    }
+
+    function loadCSV(file) {
+      const reader = new FileReader()
+      reader.onload = function(e) {
+        try {
+          const text = e.target.result
+          const parsed = parseCSV(text)
+          allTrips = processTrips(parsed)
+          filteredTrips = [...allTrips]
+          
+          document.getElementById('upload-section').classList.add('hidden')
+          document.getElementById('dashboard').classList.remove('hidden')
+          document.getElementById('file-name').textContent = file.name
+          
+          initDatePickers()
+          updateKPIs(allTrips)
+          updateCharts(allTrips)
+          renderTable()
+          updateDistLabels()
+        } catch (err) {
+          alert("Erreur lors du traitement du fichier CSV : " + err.message)
+          console.error(err)
+        }
+      }
+      reader.readAsText(file, 'utf-8')
+    }
+
+    function initDatePickers() {
+      const dateFrom = document.getElementById('date-from')
+      const dateTo = document.getElementById('date-to')
+      
+      // defaults to full range of dataset
+      if (!allTrips.length) return
+      
+      const minDate = allTrips[0].date
+      const maxDate = allTrips[allTrips.length - 1].date
+      
+      const minStr = minDate.toISOString().split('T')[0]
+      const maxStr = maxDate.toISOString().split('T')[0]
+      
+      dateFrom.value = minStr
+      dateTo.value = maxStr
+    }
+
+    function exportFilteredCSV() {
+      if (!filteredTrips.length) return
+      
+      const headers = 'date;heure depart;heure arrivee;duree (min);adresse depart;adresse arrivee;distance (km);compteur (km);conso (l/100);prix €/l;cout €;categorie'
+      
+      const lines = [headers]
+      
+      filteredTrips.forEach(t => {
+        const row = [
+          t.dateStr,
+          t.heure_depart,
+          t.heure_arrivee,
+          t.duree.min,
+          `"${t.adresse_depart}"`,
+          `"${t.adresse_arrivee}"`,
+          t.distance,
+          t.compteur_km,
+          t.conso_l100 ? t.conso_l100.toString() : '',
+          t.prix_carburant || '',
+          t.cout_eur || '',
+          t.categorie
+        ].join(';')
+        lines.push(row)
+      })
+      
+      const content = lines.join('\n')
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `DS7_trips_filtered_${Date.now()}.csv`
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }
+
+    function initDefault() {
+      // Auto-load myDS file if the user serves it locally (best effort)
+      // Automatically triggers file selection hint
+    }
+
+    function resetAll() {
+      // Soft reset of current session
+      if (confirm('Recharger la page et supprimer la visualisation actuelle ?')) {
+        window.location.reload()
+      }
+    }
+
+    // Boot
+    document.addEventListener('DOMContentLoaded', function() {
+      // Keyboard shortcuts
+      document.addEventListener('keydown', function(e) {
+        if (e.key === '/' && document.getElementById('dashboard').classList.contains('hidden') === false) {
+          const s = document.getElementById('search-input')
+          e.preventDefault()
+          s.focus()
+        }
+        if (e.key.toLowerCase() === 'escape') {
+          hideModal()
+        }
+        if (e.metaKey && e.key === 'Export') {
+          e.preventDefault()
+          exportFilteredCSV()
+        }
+      })
+      
+      updateDistLabels()
+      
+      // Optional: pre-load if file is in the same folder and user serves it
+      // Not auto for security. Show drop hint always.
+      initDefault()
+    })
+
+    // Nice tailwind script to apply dynamic colors
+    window.tailwind = window.tailwind || {}
+    window.onload = function() {
+      // Nothing extra
+    }
+  </script>
+</body>
+</html>
